@@ -32,7 +32,8 @@ first one) and **take an output out of its group**.
    and when exactly one Core answers and no address is typed, its address is
    saved. The **port** is 9330 for Roon 2 (9100 for older versions).
 2. In Roon, open **Settings > Extensions** and click **Enable** next to
-   **Gladys Assistant**. Until then the status says it is waiting for the
+   **Gladys (community)** (publisher LM1LC3N7, a community integration, not
+   made by the Gladys Assistant team). Until then the status says it is waiting for the
    authorization.
 3. Open the **Discovery** tab and add the outputs you want.
 
@@ -55,7 +56,10 @@ is not touched.
 
 A command is a success when the Core accepted it **and** the state Roon sends
 back shows it (play, pause, stop, volume, mute, shuffle, repeat, grouping).
-Seek, previous and next succeed when the Core accepts them. Otherwise the
+Seek, previous and next succeed when the Core accepts them. A command whose
+state is already there (play on a zone playing) succeeds at once; a volume the
+Core trims (a limit set in Roon) answers "not yet seen applied" although it
+is done. Otherwise the
 answer says what happened: "nothing sent", "sent, without an answer (not
 confirmed)", "accepted, not yet seen applied (not confirmed)" or "refused by
 the Roon Core".
@@ -64,14 +68,16 @@ the Roon Core".
 are refused only when nothing can receive them:
 
 - the Roon Core is not connected (or not yet authorized);
-- the output is not in Roon right now (off, renamed or removed), or two
-  outputs have the same name;
+- the output is not in Roon right now (off, renamed or removed);
 - the value is invalid;
 - for mute and volume: the output has no volume Gladys can set;
 - more than 256 requests are already waiting for the Core (a Core that stopped
   answering; other commands are held from 64 on).
 
-A zone that cannot pause (a live radio) is stopped instead. An unmute that
+When two outputs or more have the name of the device, pause, stop, mute and a
+lower volume go to every one of them (a volume only to those it lowers); play,
+unmute, a higher volume and the other commands are refused (which room would
+it be?). A zone that cannot pause (a live radio) is stopped instead. An unmute that
 waits for its volume step is not sent when another command for the same
 output was clicked meanwhile (a mute clicked after it is never overtaken).
 
@@ -79,7 +85,18 @@ output was clicked meanwhile (a mute clicked after it is never overtaken).
 
 - **Identity**: an output is identified by its name in Roon, as Home Assistant
   does (Roon may change its internal ids). Renaming an output in Roon gives a
-  new device in Gladys; two outputs with the same name are left out.
+  new device in Gladys and leaves the old one "unreachable": the scenes using
+  it stop working, without an error. **Swapped names** (two outputs trading
+  their names in Roon) are seen from the output ids last seen for each name
+  (kept in `/data`): the volume never goes to the other room; until you open
+  Discovery again (which takes the new names), the device publishes nothing,
+  pause, stop, mute and a lower volume go to the room it was made for, and
+  the other commands are refused. Two outputs with the same name are left out of Discovery and
+  publish nothing.
+- **Network**: the Roon extension API is plain `ws://` on the local network:
+  the authorization token and the commands travel in clear text on it, like for
+  every Roon extension. The token is sent to whatever answers at the address
+  typed with the id of the Core it came from.
 - The states come live from the Core (subscription), nothing is polled. After
   a loss of the Core, nothing is published until the Core is back; the badge
   of the devices shows "unreachable" meanwhile. The connection is tried again

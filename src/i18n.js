@@ -6,9 +6,10 @@
 
 const both = (en, fr) => ({ en, fr });
 const seconds = (ms) => Math.max(1, Math.round(ms / 1000));
-const ENABLE_EN = 'in Roon, open Settings > Extensions and click Enable next to "Gladys Assistant"';
+const ENABLE_EN =
+  'in Roon, open Settings > Extensions and click Enable next to "Gladys (community)"';
 const ENABLE_FR =
-  'dans Roon, ouvrez Paramètres > Extensions et cliquez sur Activer à côté de « Gladys Assistant »';
+  'dans Roon, ouvrez Paramètres > Extensions et cliquez sur Activer à côté de « Gladys (community) »';
 
 export const T = {
   notConfigured: both(
@@ -103,6 +104,8 @@ export const E = {
   noOutput: 'Nothing sent: this output is not in Roon right now (off, renamed or removed).',
   twoOutputs:
     'Nothing sent: two Roon outputs have this name; rename one in Roon, then run a Discovery.',
+  swapped:
+    'Nothing sent: the names of Roon outputs were swapped; only pause, stop, mute and a lower volume go (to the room of this device). Run a Discovery to take the new names.',
   badValue: 'Nothing sent: invalid value.',
   unknownFeature: 'Nothing sent: this feature cannot be commanded.',
   noVolume: 'Nothing sent: this output has no volume Gladys can set.',

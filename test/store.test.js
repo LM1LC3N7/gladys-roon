@@ -59,5 +59,6 @@ test('the token is written to the file, and only there', async (t) => {
   await env.ready();
   await env.app.idle();
   const saved = JSON.parse(await readFile(file, 'utf8'));
-  assert.deepEqual(saved, { version: 1, tokens: { 'core-1': env.core.token } });
+  assert.deepEqual(saved.tokens, { 'core-1': env.core.token });
+  assert.equal(saved.version, 1);
 });

@@ -20,6 +20,7 @@
 import { EventEmitter } from 'node:events';
 import WebSocket from 'ws';
 import { LIMITS, SERVICES, TIMINGS } from '../constants.js';
+import { noControl } from './model.js';
 import { encode, parse } from './moo.js';
 
 export class RoonError extends Error {
@@ -272,9 +273,14 @@ export class RoonSession extends EventEmitter {
     if (typeof coreId !== 'string' || !ID.test(coreId)) throw new RoonError('protocol');
     const core = {
       coreId,
-      name: typeof info.body.display_name === 'string' ? info.body.display_name.slice(0, 64) : '',
+      name:
+        typeof info.body.display_name === 'string'
+          ? noControl(info.body.display_name).trim().slice(0, 64)
+          : '',
       version:
-        typeof info.body.display_version === 'string' ? info.body.display_version.slice(0, 32) : '',
+        typeof info.body.display_version === 'string'
+          ? noControl(info.body.display_version).trim().slice(0, 32)
+          : '',
     };
     this.core = core;
     this.emit('info', core);

@@ -41,7 +41,7 @@ src/roon/moo.js         MOO/1 encode / parse (pure, bounded)
 src/roon/model.js       zones and outputs -> values (pure), RoonState
 src/roon/sood.js        SOOD discovery message (pure)
 src/devices.js          the output device, its id, its features (pure)
-src/store.js            /data: the token by core id
+src/store.js            /data: the tokens by core id, the output id by name
 src/config.js           config_schema normalized
 src/constants.js        extension id, timings, limits, keys
 src/i18n.js             runtime texts (en/fr)

@@ -32,7 +32,7 @@ test('authorized Core: discovery of every output, states of the created ones, st
   assert.ok(!env.logger.lines.join('\n').includes(core.token));
   assert.ok(!JSON.stringify(gladys.fake.connectionStatuses).includes(core.token));
   // The extension id is Gladys's own.
-  assert.equal(core.registers[0].extension_id, 'com.gladysassistant.roon');
+  assert.equal(core.registers[0].extension_id, 'io.github.lm1lc3n7.gladys-roon');
   assert.equal(core.registers[0].token, undefined, 'no token known yet');
 });
 

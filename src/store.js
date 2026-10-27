@@ -1,6 +1,7 @@
 // -----------------------------------------------------------------------------
 // The state kept in /data (the only writable place of the container): the
-// authorization token the Roon Core gave, by core id. A small JSON file,
+// authorization token the Roon Core gave, by core id, and the output id last
+// seen for each output name (swapped names). A small JSON file,
 // written through a temporary file and a rename, one save after the other.
 // Taken from gladys-ecodevices (approved): a file that exists but cannot be
 // read is NOT an empty state; `load()` says so (`ok: false`), and the app

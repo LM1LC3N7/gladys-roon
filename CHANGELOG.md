@@ -13,7 +13,7 @@ the notes of the version's GitHub Release.
 ### Added
 
 - Roon outputs as Gladys music players through the official Roon extension
-  API (local WebSocket of the Roon Core, extension "Gladys Assistant" enabled
+  API (local WebSocket of the Roon Core, extension "Gladys (community)" enabled
   in Roon, Settings > Extensions): playback state (play, pause, stop),
   previous, next, title, artist, album, artwork, duration, position (seek),
   shuffle, repeat, volume and mute, the name of the zone; live by

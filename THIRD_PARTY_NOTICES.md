@@ -28,6 +28,15 @@ git dependency would need git in the image), it depends on `node-uuid`
 (deprecated), and its logging and file config do not fit a read-only
 container. The WebSocket itself is `ws` (MIT), the library's own transport.
 
+## node-roon-api-status (RoonLabs)
+
+<https://github.com/RoonLabs/node-roon-api-status> (version 1.0.0, commit
+504c918d6da267e03fbb4337befa71ca3d3c7526), Copyright Roon Labs, LLC, Apache
+License 2.0: the status service (`com.roonlabs.status:1`, `subscribe_status`,
+`unsubscribe_status`, `get_status` answered with `{ message, is_error }`),
+ported in `src/roon/session.js` (`answerCore`). Changed here: a fixed message,
+no `set_status` pushed later.
+
 ## node-roon-api-transport and node-roon-api-image (RoonLabs)
 
 <https://github.com/RoonLabs/node-roon-api-transport> (version 2.0.1, commit

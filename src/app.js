@@ -21,7 +21,15 @@
 import { DEVICE_TRANSPORTS, createLogger } from '@gladysassistant/integration-sdk';
 import { randomUUID } from 'node:crypto';
 import { isConnectable, normalizeConfig, sessionKey } from './config.js';
-import { ARTWORK_PREFIX, EXTENSION, FEATURE, LIMITS, SOOD_PORT, TIMINGS } from './constants.js';
+import {
+  ARTWORK_PREFIX,
+  DEFAULT_MAX_VOLUME,
+  EXTENSION,
+  FEATURE,
+  LIMITS,
+  SOOD_PORT,
+  TIMINGS,
+} from './constants.js';
 import {
   buildDevice,
   featureKey,
@@ -50,7 +58,7 @@ const TOKEN = /^[\x21-\x7e]{1,256}$/;
 const IMAGE_KEY = /^[A-Za-z0-9_.:-]{1,128}$/;
 /** Seconds a scene action may take (manifest timeout_seconds 10, kept under). */
 const SCENE_BUDGET = 8000;
-const STATUS_TEXT = 'Connected to Gladys Assistant';
+const STATUS_TEXT = 'Connected to Gladys (community integration)';
 
 /** A command error carrying the text Gladys shows. */
 const fail = (message) => new Error(message);
@@ -121,6 +129,8 @@ export class RoonApp {
     this.finding = false;
     this.tokenUnsaved = false;
     this.gladysDown = false;
+    /** Output key (of a name) -> the output id last seen with that name. */
+    this.outputIds = new Map();
     this.loadStore();
   }
 
@@ -140,6 +150,58 @@ export class RoonApp {
         this.tokens.set(coreId, token);
       }
     }
+    const outputs = isPlain(result.data) && isPlain(result.data.outputs) ? result.data.outputs : {};
+    for (const [key, outputId] of Object.entries(outputs).slice(0, LIMITS.OUTPUTS)) {
+      if (/^[0-9a-f]{16}$/.test(key) && typeof outputId === 'string' && ID.test(outputId)) {
+        this.outputIds.set(key, outputId);
+      }
+    }
+  }
+
+  /** What /data keeps: the tokens and the output id last seen for each name. */
+  snapshot(tokens = this.tokens) {
+    return {
+      version: 1,
+      tokens: Object.fromEntries(tokens),
+      outputs: Object.fromEntries(this.outputIds),
+    };
+  }
+
+  /** Remembers the output id of a name (in /data when it can be written). */
+  record(key, outputId) {
+    if (this.outputIds.get(key) === outputId) return;
+    this.outputIds.delete(key);
+    this.outputIds.set(key, outputId);
+    while (this.outputIds.size > LIMITS.OUTPUTS) {
+      this.outputIds.delete(this.outputIds.keys().next().value);
+    }
+    if (this.storeError) return;
+    this.store.save(this.snapshot()).catch((err) => {
+      this.logger.warn(`roon: output ids not saved (${err?.code ?? 'Error'})`);
+    });
+  }
+
+  /**
+   * The output of a name, checked against the output id last seen for it
+   * (review r1, M1): `{ output }` (one live output, its id recorded), or
+   * `{ output, swapped }` when the id recorded for this name is alive under
+   * ANOTHER name (two names swapped in Roon): `swapped` is the output the
+   * device drove until now, the room it was created for.
+   */
+  identity(cur, key, outputs) {
+    const [output] = outputs;
+    const recorded = this.outputIds.get(key);
+    if (recorded === undefined || recorded === output.id) {
+      this.record(key, output.id);
+      return { output };
+    }
+    const before = cur.roon.outputs.get(recorded);
+    if (!before) {
+      // The old id is gone (Roon changed it, or the device was replaced).
+      this.record(key, output.id);
+      return { output };
+    }
+    return { output, swapped: before };
   }
 
   async saveToken(coreId, token) {
@@ -150,7 +212,7 @@ export class RoonApp {
     // At most 8 Cores remembered, the oldest forgotten.
     while (next.size > 8) next.delete(next.keys().next().value);
     try {
-      await this.store.save({ version: 1, tokens: Object.fromEntries(next) });
+      await this.store.save(this.snapshot(next));
       this.tokens = next;
       this.tokenUnsaved = false;
     } catch (err) {
@@ -257,6 +319,13 @@ export class RoonApp {
     this.lastStatus = undefined;
     this.lastTransports = undefined;
     this.lastDiscovery = undefined;
+    if (!changed && !this.current && this.retryTimer !== undefined) {
+      // Waiting for the next try (review r1, I1): a connection of Gladys or a
+      // form saved with the same address never connects sooner, nor resets
+      // the backoff; the status is said again.
+      await this.setStatus(false, this.lossStatus ?? T.lost(this.retryDelay));
+      return;
+    }
     if (changed || !this.current) {
       await this.closeSession();
       this.retryDelay = TIMINGS.RETRY_MIN;
@@ -394,6 +463,7 @@ export class RoonApp {
     else if (code === 'protocol') message = T.notRoon(this.address(), wait);
     else if (code === 'not_registered') message = T.disabled(wait);
     else message = T.lost(wait);
+    this.lossStatus = message;
     this.setStatus(false, message);
     this.publishTransports(false);
     const gen = this.generation;
@@ -495,6 +565,8 @@ export class RoonApp {
       let nowPlaying;
       let zoneName;
       if (outputs.length === 1) {
+        // Names swapped in Roon: nothing said until a Discovery accepts them.
+        if (this.identity(cur, key, outputs).swapped) continue;
         nowPlaying = this.nowPlayingOf(cur.roon, outputs[0], features);
         zoneName = cur.roon.zoneOfOutput(outputs[0].id)?.name || outputs[0].name;
       } else if (outputs.length === 0) {
@@ -603,7 +675,17 @@ export class RoonApp {
     });
   }
 
+  /**
+   * A Discovery asked by the user: the names as Roon has them now are taken
+   * as they are (this is how a swap of two names is accepted).
+   */
   scan() {
+    const cur = this.current;
+    if (cur?.ready) {
+      for (const [key, outputs] of this.outputsByKey(cur.roon)) {
+        if (outputs.length === 1) this.record(key, outputs[0].id);
+      }
+    }
     return this.publishDiscovered();
   }
 
@@ -617,13 +699,56 @@ export class RoonApp {
 
   /** The live output of a device, or an error saying why nothing can be sent. */
   resolve(externalId) {
+    const { cur, outputs } = this.resolveAll(externalId);
+    if (outputs.length > 1) throw fail(E.twoOutputs);
+    const { output, swapped } = this.identity(cur, keyOfDeviceId(externalId), outputs);
+    if (swapped) throw fail(E.swapped);
+    return { cur, output };
+  }
+
+  /** Every live output of the name of a device (one, or several homonyms). */
+  resolveAll(externalId) {
     const cur = this.current;
     if (!cur?.ready || !cur.alive || !cur.session.alive) throw fail(E.notConnected);
     const key = keyOfDeviceId(externalId);
     const outputs = key ? (this.outputsByKey(cur.roon).get(key) ?? []) : [];
     if (outputs.length === 0) throw fail(E.noOutput);
-    if (outputs.length > 1) throw fail(E.twoOutputs);
-    return { cur, output: outputs[0] };
+    return { cur, outputs };
+  }
+
+  /**
+   * Two outputs or more of one name (review r1, I2): what only silences
+   * (pause, stop, mute, a lower volume) goes to every one of them; anything
+   * else is refused (which room would it be?).
+   */
+  async silenceAll(cur, outputs, key, value, started, refusal = E.twoOutputs) {
+    let run;
+    if (key === FEATURE.PAUSE) {
+      run = (output) => this.playback(cur, output, 'pause', started);
+    } else if (key === FEATURE.PLAYBACK_STATE) {
+      const state = numberOf(value, { integer: true, min: 0, max: 2 });
+      if (state === PLAYBACK.PLAYING) throw fail(refusal);
+      const action = state === PLAYBACK.PAUSED ? 'pause' : 'stop';
+      run = (output) => this.playback(cur, output, action, started);
+    } else if (key === FEATURE.MUTE) {
+      if (numberOf(value, { integer: true, min: 0, max: 1 }) !== 1) throw fail(refusal);
+      run = (output) => this.mute(cur, output, true, started);
+    } else if (key === FEATURE.VOLUME) {
+      const percent = numberOf(value, { min: 0, max: 100 });
+      // Only the outputs this volume lowers (each against its own volume).
+      const lowered = outputs.filter((output) => {
+        if (!hasVolume(output) || typeof output.volume.value !== 'number') return false;
+        return volumeTarget(output.volume, percent, this.config.max_volume) <= output.volume.value;
+      });
+      if (lowered.length === 0) throw fail(refusal);
+      outputs = lowered;
+      run = (output) => this.volume(cur, output, percent, started);
+    } else {
+      throw fail(refusal);
+    }
+    const results = await Promise.allSettled(outputs.map((output) => run(output)));
+    const failed = results.find((r) => r.status === 'rejected');
+    if (failed) throw failed.reason;
   }
 
   /** The output as the picture shows it now (by id), or undefined. */
@@ -679,7 +804,14 @@ export class RoonApp {
     const started = this.monotonic();
     const key = featureKey(feature?.external_id);
     if (!Object.values(FEATURE).includes(key) || key === FEATURE.ZONE) throw fail(E.unknownFeature);
-    const { cur, output } = this.resolve(device?.external_id);
+    const { cur, outputs } = this.resolveAll(device?.external_id);
+    if (outputs.length > 1) return this.silenceAll(cur, outputs, key, value, started);
+    const { output, swapped } = this.identity(cur, keyOfDeviceId(device.external_id), outputs);
+    if (swapped) {
+      // Never a command to the room that took this name: what silences goes
+      // to the room the device was made for, the rest is refused.
+      return this.silenceAll(cur, [swapped], key, value, started, E.swapped);
+    }
     switch (key) {
       case FEATURE.PLAYBACK_STATE: {
         const state = numberOf(value, { integer: true, min: 0, max: 2 });
@@ -913,7 +1045,7 @@ export class RoonApp {
           await this.configUpdated({
             host: core.host,
             port: core.port,
-            max_volume: this.config?.max_volume,
+            max_volume: this.config?.max_volume ?? DEFAULT_MAX_VOLUME,
           });
           return T.findSaved(label(core));
         } catch (err) {
@@ -942,7 +1074,7 @@ export class RoonApp {
   forgetAuthorization() {
     return this.serialize(async () => {
       try {
-        await this.store.save({ version: 1, tokens: {} });
+        await this.store.save(this.snapshot(new Map()));
       } catch (err) {
         this.logger.warn(`roon: /data not written (${err?.code ?? 'Error'})`);
         return T.forgetFailed;

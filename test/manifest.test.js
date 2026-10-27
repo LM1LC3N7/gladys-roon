@@ -70,7 +70,13 @@ test('the store basics; one semver version in 4 places, never pinned here', () =
 });
 
 test('the extension id is Gladys’s own, never one of another platform', () => {
-  assert.equal(EXTENSION.extension_id, 'com.gladysassistant.roon');
+  assert.equal(EXTENSION.extension_id, 'io.github.lm1lc3n7.gladys-roon');
+  // Never the namespace or the name of the Gladys team: a community integration.
+  for (const value of [EXTENSION.extension_id, EXTENSION.display_name, EXTENSION.publisher]) {
+    assert.doesNotMatch(value, /gladysassistant/i);
+    if (/Gladys Assistant/.test(value)) assert.match(value, /community|not by/i);
+  }
+  assert.match(EXTENSION.display_name, /community/);
   assert.equal(EXTENSION.display_version, pkg.version);
   for (const value of Object.values(EXTENSION)) {
     assert.doesNotMatch(String(value), /home.?assistant|hass|openhab|homey|jeedom|hubitat/i);
@@ -170,6 +176,8 @@ test('the licenses ship in the image; no name in LICENSE; the ported code is cre
     'node-roon-api',
     'node-roon-api-transport',
     'node-roon-api-image',
+    'node-roon-api-status',
+    '504c918d6da267e03fbb4337befa71ca3d3c7526',
     'Roon Labs',
   ]) {
     assert.ok(notices.includes(name), name);

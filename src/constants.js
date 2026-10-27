@@ -12,11 +12,13 @@ const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url),
  * Gladys's own (never the one of another platform: lot 16, laundrify): the
  * Core keys the authorization on it, so it never changes.
  */
+// The id is a reverse DNS name the author controls (github.io/lm1lc3n7),
+// never the domain of the Gladys project: this is a community integration.
 export const EXTENSION = Object.freeze({
-  extension_id: 'com.gladysassistant.roon',
-  display_name: 'Gladys Assistant',
+  extension_id: 'io.github.lm1lc3n7.gladys-roon',
+  display_name: 'Gladys (community)',
   display_version: String(pkg.version),
-  publisher: 'Gladys Assistant community (gladys-roon)',
+  publisher: 'LM1LC3N7 (Gladys community integration, not by Gladys Assistant)',
   email: '14235706+LM1LC3N7@users.noreply.github.com',
   website: 'https://github.com/LM1LC3N7/gladys-roon',
 });

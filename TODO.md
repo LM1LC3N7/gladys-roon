@@ -7,7 +7,7 @@ to date at the end of every milestone.
 
 - [x] **Milestone 1 — core** (2026-10-27): one session with the Roon Core of
       the configuration (address typed or found by SOOD through the Gladys
-      core), registration as the extension "Gladys Assistant" (token kept in
+      core), registration as the extension "Gladys (community)" (token kept in
       /data by core id), zones and outputs by subscription; one device per
       output with the music features of Gladys 5.3 (playback state, play,
       pause, previous, next, title, artist, album, artwork, duration,
@@ -42,6 +42,11 @@ to date at the end of every milestone.
 - Output display names: unique per Core as users name them; what happens to
   the name of an output of a grouped zone.
 - `is_pause_allowed: false` on a live radio (pause sent as stop).
+- A MOO frame whose body is longer than its `Content-Length`: node-roon-api
+  tolerates the extra bytes, `src/roon/moo.js` refuses the frame (the session
+  would end as "not a Roon Core" in a loop). Relax if a real Core does it.
+- `confirm` succeeds at once when the state asked is already there, and says
+  "not yet seen applied" for a volume the Core trims to a limit (documented).
 
 ## Decisions
 
@@ -62,17 +67,27 @@ to date at the end of every milestone.
   ~500 lines, hardened (bounded headers and frames, `ws` maxPayload 1 MiB,
   strict lengths). `ws` (MIT), the library's own transport, is the only other
   runtime dependency.
-- **Extension id `com.gladysassistant.roon`**, display name "Gladys
-  Assistant", publisher "Gladys Assistant community (gladys-roon)", e-mail the
-  public GitHub noreply address of the maintainer: never the id of another
-  platform (Home Assistant uses `home_assistant`; lot 16 lesson, laundrify).
-  The Core keys the authorization on it: never change it (Louis may want
-  another publisher text before the first release).
+- **Extension id `io.github.lm1lc3n7.gladys-roon`** (review r1, B1): a
+  reverse DNS name the author controls, never `com.gladysassistant` (the
+  domain of the Gladys project, which would share the tokens with an official
+  extension one day) nor the id of another platform (Home Assistant uses
+  `home_assistant`; lot 16 lesson, laundrify). Display name "Gladys
+  (community)", publisher "LM1LC3N7 (Gladys community integration, not by
+  Gladys Assistant)", status "Connected to Gladys (community integration)",
+  e-mail the public GitHub noreply address (Roon Labs cannot write to it; the
+  website is the repository). The Core keys the authorization on the id:
+  **never change it after the first release**.
 - **One device per output, identified by its display name**
   (`output:<16 hex of SHA-256(name)>`), as Home Assistant (which saw output
   and zone ids change). Renaming an output gives a new device; two outputs of
   one name are left out (not listed, not commanded, nothing published). The
   output id is read again from the live picture before every command.
+- **Swapped names** (review r1, M1): `/data` keeps the output id last seen
+  for each name; when the id of a name is alive under another name, the
+  device publishes nothing, silencing commands go to the recorded output (its
+  room), the others are refused, until a Discovery (scan) takes the names as
+  they are. Homonyms (I2): pause, stop, mute and a lower volume go to all of
+  them, the rest is refused.
 - **Commands straight to the Core**: MOO is multiplexed (Request-Id), the Core
   a server; commands go in click order on one socket, without a queue, so a
   pause never waits behind another request. The fiche's "one request at a
@@ -96,7 +111,9 @@ to date at the end of every milestone.
   Roon). Positions are samples (the SDK republishes a position only on a
   seek). 300 states/min: the flush stops at 280 in the last minute and waits.
 - **Token**: in `/data/roon-state.json` (mode 600) by core id, at most 8
-  cores, sent only to the Core it came from; never in logs, statuses, errors.
+  cores, sent at register to whatever answers at the typed address with that
+  core id (plain `ws://`: in clear text on the LAN, inherent to the Roon API,
+  said in the docs); never in logs, statuses, errors.
   An unreadable file is not empty: nothing is sent to the Core (it would
   register as a new extension) and the file is never overwritten, until
   "Forget the Roon authorization".
@@ -107,5 +124,7 @@ to date at the end of every milestone.
   `group_outputs` when Roon lists the member in `can_group_with_output_ids`,
   `ungroup_outputs`; confirmed by the zones. The zone name is a read-only text
   feature.
+- **Command errors in English only** (`E` in `src/i18n.js`): Gladys shows the
+  message of a failed acknowledgement as is; statuses and buttons are en/fr.
 - **No `poll_frequency`**: the Core pushes everything.
-- Container: read-only rootfs, `/data` for the token only, bridge network.
+- Container: read-only rootfs, `/data` for the tokens and the output id of each name, bridge network.

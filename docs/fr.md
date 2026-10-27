@@ -1,67 +1,98 @@
-# Template de démonstration
+# Zones Roon (non officiel)
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Connecteur non officiel, sans lien avec Roon Labs. Il parle à votre **Roon
+Core** (Roon Server, Nucleus, ROCK, ou l'application Roon qui fait office de
+Core) en réseau local, par l'API officielle des extensions Roon : sans compte,
+sans cloud.
+
+> Écrite d'après la documentation de l'API Roon : elle n'a **jamais été testée avec un vrai Roon Core**.
+> Les retours sont bienvenus (issues GitHub de `LM1LC3N7/gladys-roon`).
+
+Nécessite Gladys 5.3.0 ou plus récent (widget Musique).
 
 ## Ce que vous obtenez
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+Un appareil Gladys par **sortie Roon** (une pièce, une enceinte, un DAC),
+avec :
 
-## Configuration
+- la lecture : lecture, pause, arrêt (widget Musique), précédent, suivant ;
+- le morceau en cours : titre, artiste, album, pochette, durée et position ;
+- l'aléatoire et la répétition (non, tout, un) ;
+- le volume (0-100 % de la plage de la sortie) et la sourdine, quand Roon peut
+  régler le volume de la sortie (pas pour un volume fixe ni pour des
+  commandes +/- seulement) ;
+- le nom de la zone où joue la sortie (par ex. « Salon + Cuisine » une fois
+  regroupées).
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+Deux actions de scène : **regrouper deux sorties** (la zone garde la file
+d'attente de la première) et **sortir une sortie de son groupe**.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+## Mise en place
 
-## Actions
+1. Saisissez l'**adresse** du Roon Core (donnez-lui une adresse fixe dans
+   votre box), ou cliquez sur **Trouver le Roon Core** : Gladys interroge le
+   réseau local, et quand un seul Core répond et qu'aucune adresse n'est
+   saisie, son adresse est enregistrée. Le **port** est 9330 pour Roon 2
+   (9100 pour les versions plus anciennes).
+2. Dans Roon, ouvrez **Paramètres > Extensions** et cliquez sur **Activer** à
+   côté de **Gladys Assistant**. En attendant, le statut indique l'attente
+   d'autorisation.
+3. Ouvrez l'onglet **Découverte** et ajoutez les sorties voulues.
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+L'autorisation donnée par le Core est gardée dans le dossier `/data` de
+l'intégration (jamais dans les journaux, jamais affichée). **Oublier
+l'autorisation Roon** la supprime : il faut alors réactiver l'extension dans
+Roon.
 
-## Scènes
+## Plafond de volume
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+**Plafond de volume (%)**, 50 par défaut : le volume le plus fort que Gladys
+peut régler, en pourcentage de la plage de chaque sortie (100 : pas de
+plafond). Un volume plus fort demandé par une scène ou le tableau de bord est
+ramené au plafond, arrondi vers le bas au pas de la sortie, et jamais
+au-dessus des limites réglées dans Roon. Couper la sourdine ramène d'abord le
+volume sous le plafond s'il est au-dessus (et est refusé quand le volume de la
+sortie est inconnu, tant qu'un plafond s'applique). Le volume changé dans Roon
+lui-même n'est pas modifié.
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+## Les commandes et leurs réponses
 
-## Tableau de bord
+Une commande réussit quand le Core l'a acceptée **et** que l'état renvoyé par
+Roon la montre (lecture, pause, arrêt, volume, sourdine, aléatoire,
+répétition, regroupement). Le déplacement dans le morceau, précédent et
+suivant réussissent quand le Core les accepte. Sinon la réponse dit ce qui
+s'est passé : « rien envoyé », « envoyée, sans réponse (non confirmée) »,
+« acceptée, pas encore vue appliquée (non confirmée) » ou « refusée par le
+Roon Core ».
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+**La pause, l'arrêt, la sourdine et une baisse de volume ne sont pas retenus
+par le plafond.** Ils ne sont refusés que si rien ne peut les recevoir :
 
-## Dépannage
+- le Roon Core n'est pas connecté (ou pas encore autorisé) ;
+- la sortie n'est pas dans Roon en ce moment (éteinte, renommée ou retirée),
+  ou deux sorties portent le même nom ;
+- la valeur est invalide ;
+- pour la sourdine et le volume : la sortie n'a pas de volume que Gladys peut
+  régler ;
+- plus de 256 requêtes attendent déjà le Core (un Core qui ne répond plus ;
+  les autres commandes sont retenues dès 64).
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+Une zone qui ne peut pas faire pause (une radio en direct) est arrêtée à la
+place. Une remise du son qui attend son réglage de volume n'est pas envoyée
+si une autre commande pour la même sortie a été cliquée entre-temps (une
+sourdine cliquée après elle n'est jamais doublée).
+
+## Bon à savoir
+
+- **Identité** : une sortie est reconnue à son nom dans Roon, comme le fait
+  Home Assistant (Roon peut changer ses identifiants internes). Renommer une
+  sortie dans Roon donne un nouvel appareil dans Gladys ; deux sorties de même
+  nom sont laissées de côté.
+- Les états arrivent en direct du Core (abonnement), rien n'est interrogé à
+  intervalle. Après une perte du Core, rien n'est publié avant son retour ; le
+  badge des appareils indique « injoignable » en attendant. La connexion est
+  retentée après 5 s, puis 10 s, jusqu'à toutes les 2 minutes.
+- La pochette est demandée au Core (400 px, 300 Ko au plus) quand Gladys
+  l'affiche.
+- Pas encore de listes de lecture, de bibliothèque ni de radios à parcourir
+  (voir le TODO du dépôt).

@@ -1,177 +1,166 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Roon zones (unofficial)",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Unofficial connector: Roon outputs, play, volume, now playing, groups, on the local network.",
+    "fr": "Connecteur non officiel : sorties Roon, lecture, volume, en cours, groupes, en réseau local."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
-  "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "version": "0.1.0",
+  "docker_image": "ghcr.io/lm1lc3n7/gladys-roon:0.1.0",
+  "gladys_version": ">=5.3.0",
+  "cover_image": "https://raw.githubusercontent.com/LM1LC3N7/gladys-roon/main/cover.png",
+  "categories": ["multimedia"],
+  "transports": ["local"],
+  "music": {},
+  "network_discovery": [{ "type": "udp-active-broadcast", "ports": [9003] }],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": { "en": "Roon in Gladys", "fr": "Roon dans Gladys" },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Unofficial connector, not affiliated with Roon Labs. It talks to your Roon Core on the local network through the official Roon extension API (no account, no cloud): one Gladys device per Roon output, with play, pause, stop, previous, next, volume, mute, shuffle, repeat, the track playing and its artwork for the Music widget, and grouping by scene actions. Type the address of the Core (or click \"Find the Roon Core\"), then in Roon open Settings > Extensions and click Enable next to \"Gladys Assistant\". Then open Discovery to add the outputs.",
+        "fr": "Connecteur non officiel, sans lien avec Roon Labs. Il parle à votre Roon Core en réseau local par l'API officielle des extensions Roon (sans compte, sans cloud) : un appareil Gladys par sortie Roon, avec lecture, pause, arrêt, précédent, suivant, volume, sourdine, aléatoire, répétition, le morceau en cours et sa pochette pour le widget Musique, et le regroupement par des actions de scène. Saisissez l'adresse du Core (ou cliquez sur « Trouver le Roon Core »), puis dans Roon ouvrez Paramètres > Extensions et cliquez sur Activer à côté de « Gladys Assistant ». Ouvrez ensuite Découverte pour ajouter les sorties."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/LM1LC3N7/gladys-roon/blob/main/docs/fr.md",
+          "label": { "en": "Guide (French)", "fr": "Guide (français)" }
+        },
+        {
+          "url": "https://github.com/LM1LC3N7/gladys-roon/blob/main/docs/en.md",
+          "label": { "en": "Guide (English)", "fr": "Guide (anglais)" }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
+      "key": "host",
+      "type": "string",
+      "label": { "en": "Roon Core address", "fr": "Adresse du Roon Core" },
       "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
-    },
-    {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
-    },
-    {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
-      "required": false,
-      "default": "celsius",
-      "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
-      ]
-    },
-    {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
-      "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "IP address (or host name) of the computer or appliance running the Roon Core (Roon Server, Nucleus, ROCK…). Give it a fixed address in your router. \"Find the Roon Core\" fills it in when one Core answers.",
+        "fr": "Adresse IP (ou nom d'hôte) de l'ordinateur ou de l'appareil qui fait tourner le Roon Core (Roon Server, Nucleus, ROCK…). Donnez-lui une adresse fixe dans votre box. « Trouver le Roon Core » la remplit quand un seul Core répond."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "placeholder": { "en": "e.g. 192.168.1.30", "fr": "ex. 192.168.1.30" }
+    },
+    {
+      "key": "port",
+      "type": "number",
+      "label": { "en": "Roon Core port", "fr": "Port du Roon Core" },
+      "description": {
+        "en": "The port of the extension API: 9330 for Roon 2, 9100 for older versions.",
+        "fr": "Le port de l'API des extensions : 9330 pour Roon 2, 9100 pour les versions plus anciennes."
+      },
+      "required": false,
+      "default": 9330,
+      "min": 1,
+      "max": 65535
+    },
+    {
+      "key": "max_volume",
+      "type": "number",
+      "label": { "en": "Volume cap (%)", "fr": "Plafond de volume (%)" },
+      "description": {
+        "en": "The highest volume Gladys may set, in percent of the range of each output, from 1 to 100 (100: no cap). A higher volume asked by a scene or the dashboard is set to this cap; unmuting brings the volume back under the cap first. The volume set in Roon itself is not changed, and a lower volume, pause, stop and mute are never held by the cap.",
+        "fr": "Le volume le plus fort que Gladys peut régler, en pourcentage de la plage de chaque sortie, de 1 à 100 (100 : pas de plafond). Un volume plus fort demandé par une scène ou le tableau de bord est ramené à ce plafond ; couper la sourdine ramène d'abord le volume sous le plafond. Le volume réglé dans Roon lui-même n'est pas modifié, et une baisse de volume, la pause, l'arrêt et la sourdine ne sont jamais retenus par le plafond."
+      },
+      "required": false,
+      "default": 50,
+      "min": 1,
+      "max": 100
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
+      "key": "find_core",
+      "timeout_seconds": 20,
+      "label": { "en": "Find the Roon Core", "fr": "Trouver le Roon Core" },
+      "description": {
+        "en": "Asks the local network which Roon Cores are there (through Gladys). When exactly one answers and no address is typed, its address is saved.",
+        "fr": "Demande au réseau local quels Roon Core s'y trouvent (par Gladys). Quand un seul répond et qu'aucune adresse n'est saisie, son adresse est enregistrée."
+      }
     },
     {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
-    }
-  ],
-  "scene_triggers": [
-    {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "test_connection",
+      "timeout_seconds": 10,
+      "label": { "en": "Show the connection", "fr": "Voir la connexion" },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
-      },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
-        }
-      ],
-      "variables": [
-        {
-          "key": "target",
-          "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
-        }
-      ]
+        "en": "Shows the state of the connection to the Core and the volume cap (no new connection is opened).",
+        "fr": "Affiche l'état de la connexion au Core et le plafond de volume (aucune nouvelle connexion n'est ouverte)."
+      }
+    },
+    {
+      "key": "forget_authorization",
+      "timeout_seconds": 20,
+      "label": { "en": "Forget the Roon authorization", "fr": "Oublier l'autorisation Roon" },
+      "description": {
+        "en": "Deletes the authorization the Core gave (kept in the /data folder of the integration), then connects again: the extension has to be enabled again in Roon.",
+        "fr": "Supprime l'autorisation donnée par le Core (gardée dans le dossier /data de l'intégration), puis se reconnecte : il faut réactiver l'extension dans Roon."
+      }
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
+      "key": "group_with",
+      "label": { "en": "Roon: group two outputs", "fr": "Roon : regrouper deux sorties" },
       "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+        "en": "Adds an output to the zone of another one (the zone keeps the queue of the first output). Roon must allow these two outputs together.",
+        "fr": "Ajoute une sortie à la zone d'une autre (la zone garde la file d'attente de la première sortie). Roon doit accepter ces deux sorties ensemble."
       },
-      "timeout_seconds": 15,
+      "timeout_seconds": 10,
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "required": true,
+          "label": { "en": "Output keeping its queue", "fr": "Sortie qui garde sa file" }
+        },
+        {
+          "key": "with",
+          "type": "select",
+          "source": "devices",
+          "required": true,
+          "label": { "en": "Output to add", "fr": "Sortie à ajouter" }
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "zone",
+          "type": "string",
+          "label": { "en": "Name of the zone", "fr": "Nom de la zone" }
         }
       ]
-    }
-  ],
-  "widgets": [
+    },
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "ungroup",
+      "label": {
+        "en": "Roon: take an output out of its group",
+        "fr": "Roon : sortir une sortie de son groupe"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "The output plays on its own again (nothing is sent when it is already alone).",
+        "fr": "La sortie joue de nouveau seule (rien n'est envoyé si elle l'est déjà)."
+      },
+      "timeout_seconds": 10,
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "required": true,
+          "label": { "en": "Output", "fr": "Sortie" }
+        }
+      ],
+      "outputs": [
+        {
+          "key": "zone",
+          "type": "string",
+          "label": { "en": "Name of its zone", "fr": "Nom de sa zone" }
+        }
+      ]
     }
   ]
 }

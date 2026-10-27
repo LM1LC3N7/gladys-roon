@@ -1,76 +1,71 @@
 # CLAUDE.md
 
-Project rules for coding assistants (Claude Code reads this file) and for human
-contributors.
+Project rules for coding assistants (Claude Code reads this file) and for
+human contributors. Read **[TODO.md](./TODO.md) first**: status, decisions
+already taken and the next milestones.
 
 ## What this is
 
-A Gladys Assistant **external integration**: a Node.js service (Node 22+, ESM,
-no build step) that runs in its own sandboxed Docker container and talks to
-Gladys through
-[`@gladysassistant/integration-sdk`](https://github.com/GladysAssistant/integration-sdk-js),
-its only runtime dependency. It started from the official JavaScript template.
+A Gladys Assistant **external integration** of type `device`: a Node.js
+service (Node 22+, ESM, no build step) in its own sandboxed Docker container,
+talking to Gladys through `@gladysassistant/integration-sdk` (v0.16) and to a
+**Roon Core** through the official Roon extension API (WebSocket
+`ws://<core>:9330/api`, MOO/1 messages), ported from node-roon-api
+(Apache-2.0). Runtime dependencies: the SDK and `ws`. One device per Roon
+output, music features of Gladys 5.3. Local only. Unofficial: not affiliated
+with Roon Labs.
 
 ## Commands
 
 ```bash
 npm install
-npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
-npm run lint                              # ESLint
-npm run format:check                      # Prettier, as the CI runs it
-npm run format                            # Prettier, fix in place
-npx github:GladysAssistant/integration-store .   # store admission checks
+npm test                                  # node --test --test-timeout=60000
+node --test test/app.test.js              # one file
+npm run lint
+npm run format:check
+npm run audit
+npm run cover                             # regenerates cover.png
+node ~/code/ref/integration-store/src/validate-cli.js . --skip-image-check
 ```
-
-The CI (`.github/workflows/ci.yml`) runs `format:check`, `lint` and `test` on
-Node 22 and 24, and builds the Docker image: run the three commands before
-pushing.
 
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
-src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
-gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
-.github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
+index.js                SDK bootstrap only
+src/handlers.js         every SDK handler -> the app (shared with the tests)
+src/app.js              RoonApp: lifecycle, session, publication, commands,
+                        scene actions, buttons, artwork
+src/roon/session.js     one WebSocket session: info, register, subscriptions,
+                        ping/status services, keepalive, requests
+src/roon/moo.js         MOO/1 encode / parse (pure, bounded)
+src/roon/model.js       zones and outputs -> values (pure), RoonState
+src/roon/sood.js        SOOD discovery message (pure)
+src/devices.js          the output device, its id, its features (pure)
+src/store.js            /data: the token by core id
+src/config.js           config_schema normalized
+src/constants.js        extension id, timings, limits, keys
+src/i18n.js             runtime texts (en/fr)
+test/helpers/fakeCore.js  a fake Roon Core on a loopback WebSocket
 ```
 
 ## Rules
 
-- **External ids are forever.** Build them with
-  `gladys.externalIds(type, platformId)`, `platformId` being the unique id the
-  platform gives the device (serial, cloud id, MAC), never a label. Gladys keys
-  devices, their history, scenes and dashboards on them: changing one creates a
-  new device and orphans the old one. The same goes for every key users store:
-  manifest `config_schema`, `actions`, widget and scene keys, feature keys.
-- **The container rootfs is read-only.** Write only under `/data`, the one
-  writable volume. Never log tokens, passwords or API keys.
-- **Versions belong to the Release workflow** (Actions → Release). Never edit
-  `version` in `package.json` or in the manifest, nor the `docker_image` tag,
-  by hand — except on the README's hand-pushed tag path, which bumps all three
-  together before tagging. `test/manifest.test.js` checks they agree.
-- **Changelog.** Every user-visible change adds a line under `## [Unreleased]`
-  in `CHANGELOG.md` (`### Added`, `Changed`, `Fixed`, `Removed`, `Security`).
-  Never write a version heading: the Release workflow moves the section, and it
-  becomes the notes of the GitHub Release.
-- **Manifest.** Texts are multi-language objects `{ "en": ..., "fr": ... }`:
-  `label`, `description` and `placeholder` alike, never a plain string. The
-  catalog `description` holds 10 to 100 characters per language. A field the
-  older cores do not know needs a higher `gladys_version` minimum
-  (`categories`: 4.86.0; `widgets`, `scene_triggers`, `scene_actions`,
-  `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
-  code (defaults, action, scene and widget handlers): change both sides
-  together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
-- **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
-  in English. Tests never touch the network.
+- **Keys are forever**: the extension id (`EXTENSION` in
+  `src/constants.js`: the Core keys the authorization on it), the manifest
+  keys, the feature keys (`FEATURE`), the device id shape
+  `output:<16 hex of SHA-256(display name)>`.
+- **The token never leaves /data and the Core**: never logged, never in a
+  status, an error or a test output. Log error names and codes, never a body.
+- **States only from the live picture** of the current session; nothing
+  stale republished.
+- **Pause, stop, mute, a lower volume** are never held by the volume cap nor
+  by anything but "nothing can receive them" (see docs, "Commands").
+- **Volume** always under the cap and the limits of the output.
+- **Read-only rootfs**: write only `/data`.
+- **Versions belong to the Release workflow**; changelog under
+  `## [Unreleased]`.
+- **User-facing text** bilingual (`docs/en.md`, `docs/fr.md`, manifest,
+  `src/i18n.js`); a secret is never described as ciphered (test/encoding.test.js).
+- **Tests never touch the network** beyond loopback (the fake Core, the
+  servers of `~/code/ref/gladys-testkit`).
+- **Built blind**: no Core was at hand; `TODO.md` lists what to confirm.

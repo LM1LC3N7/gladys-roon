@@ -589,3 +589,111 @@ test('an old session: no timer for its info, no picture completed by its last li
     assert.equal(sessions[1].listenerCount('zones'), 1);
   }
 });
+
+// --- Review r2 ----------------------------------------------------------------------------
+
+test('a clock jump of 3.4 s after the lowering: the unmute answers "too late", nothing waits', async (t) => {
+  const device = created(LIVING);
+  const env = await setup({
+    devices: [device],
+    core: { outputs: [makeOutput('o1', LIVING, { volume: volume(80, { is_muted: true }) })] },
+  });
+  t.after(() => env.close());
+  await env.ready();
+  env.core.silent.add('mute');
+  const base = env.app.monotonic;
+  // The monotonic clock jumps once the lowering was answered (a stalled VM), no timer fired.
+  env.app.monotonic = () => base() + (env.core.commands('change_volume').length > 0 ? 3400 : 0);
+  const ack = await set(env, device, 'mute', 0);
+  assert.equal(ack.error, E.late);
+  assert.equal(env.core.commands('mute').length, 0, 'never a request without a timer');
+  assert.equal(env.app.current.session.pending.size, 2, 'only the two subscriptions wait');
+});
+
+test('slow /data: a record() written during the token save keeps the token in the file', async (t) => {
+  const store = createMemoryStore();
+  const save = store.save.bind(store);
+  store.save = async (data) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    return save(data);
+  };
+  const env = await setup({ devices: [created(LIVING)], store });
+  t.after(() => env.close());
+  await env.ready(); // the flush records the output id while the token is being written
+  await until(() => store.saves >= 2, 'both writes', 4000);
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  assert.deepEqual(store.data.tokens, { 'core-1': env.core.token });
+  assert.equal(Object.keys(store.data.outputs).length >= 1, true);
+});
+
+test('the texts shown in Roon and to the user never say "Gladys Assistant" alone', async () => {
+  const { readFileSync } = await import('node:fs');
+  const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+  const status = /const STATUS_TEXT = '([^']*)'/.exec(app)[1];
+  const { T } = await import('../src/i18n.js');
+  const waiting = T.waiting('Core');
+  for (const text of [status, waiting.en, waiting.fr, T.disabled(5000).en, T.disabled(5000).fr]) {
+    assert.doesNotMatch(text, /Gladys Assistant/, text);
+    assert.match(text, /Gladys \(community/, text);
+  }
+});
+
+test('the id of a name gone from Roon: the new output of that name is adopted', async (t) => {
+  const device = created(LIVING);
+  const store = createMemoryStore();
+  const env = await setup({ devices: [device], store });
+  t.after(() => env.close());
+  await env.ready();
+  const key = device.external_id.split(':').at(-1);
+  assert.equal(store.data.outputs[key], 'o1');
+  // o1 is replaced by o3 with the same name (Roon gave a new id).
+  const zone = env.core.zoneOf('o1');
+  env.core.zones.delete(zone.zone_id);
+  const o3 = makeOutput('o3', LIVING);
+  env.core.zones.set(o3.zone_id, { ...zone, zone_id: o3.zone_id, outputs: [o3] });
+  env.core.pushZones([o3.zone_id], [zone.zone_id]);
+  env.core.pushOutputs(['o3'], ['o1']);
+  await until(
+    () => env.app.current.roon.outputs.has('o3') && !env.app.current.roon.outputs.has('o1'),
+  );
+  assert.deepEqual(await set(env, device, 'volume', 20), { success: true });
+  assert.equal(env.core.commands('change_volume').at(-1).output_id, 'o3');
+  assert.equal(store.data.outputs[key], 'o3');
+});
+
+test('homonyms: a pause refused on one of the two is not a success', async (t) => {
+  const device = created(KITCHEN);
+  const env = await setup({
+    devices: [device],
+    core: { outputs: [makeOutput('o1', KITCHEN), makeOutput('o2', KITCHEN)] },
+  });
+  t.after(() => env.close());
+  for (const id of ['o1', 'o2']) env.core.zoneOf(id).state = 'playing';
+  await env.ready();
+  env.core.refuseFor = new Set(['o2']);
+  const ack = await set(env, device, 'pause', 1);
+  assert.equal(ack.success, false);
+  assert.equal(ack.error, E.refused('InvalidRequest'));
+  assert.equal(env.core.zoneOf('o1').state, 'paused', 'the other one was paused');
+});
+
+test('names swapped: the badge of the device says unreachable', async (t) => {
+  const living = created(LIVING);
+  const env = await setup({ devices: [living, created(KITCHEN)] });
+  t.after(() => env.close());
+  await env.ready();
+  const badge = () =>
+    env.gladys.fake.transports.filter((e) => e.device_external_id === living.external_id).at(-1)
+      ?.transport;
+  assert.equal(badge(), 'local');
+  env.core.output('o1').display_name = KITCHEN;
+  env.core.output('o2').display_name = LIVING;
+  env.core.pushOutputs(['o1', 'o2']);
+  env.core.pushZones();
+  await until(() => env.app.current.roon.outputs.get('o1').name === KITCHEN);
+  await env.flush();
+  assert.equal(badge(), 'unreachable');
+  await env.gladys.fake.scanRequest();
+  await env.flush();
+  assert.equal(badge(), 'local');
+});

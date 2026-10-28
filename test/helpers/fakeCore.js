@@ -197,7 +197,7 @@ export async function fakeCore({
   const commands = {
     control(body) {
       const zone = core.zoneOf(body.zone_or_output_id);
-      if (!zone) return 'InvalidRequest';
+      if (!zone || core.refuseFor?.has(body.zone_or_output_id)) return 'InvalidRequest';
       const next = { play: 'playing', pause: 'paused', stop: 'stopped' }[body.control];
       if (body.control === 'pause' && zone.is_pause_allowed === false) return 'InvalidRequest';
       if (next) {

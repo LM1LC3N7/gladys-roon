@@ -89,7 +89,8 @@ output was clicked meanwhile (a mute clicked after it is never overtaken).
   it stop working, without an error. **Swapped names** (two outputs trading
   their names in Roon) are seen from the output ids last seen for each name
   (kept in `/data`): the volume never goes to the other room; until you open
-  Discovery again (which takes the new names), the device publishes nothing,
+  Discovery again (which takes the new names), the device publishes nothing
+  (its badge shows "unreachable"),
   pause, stop, mute and a lower volume go to the room it was made for, and
   the other commands are refused. Two outputs with the same name are left out of Discovery and
   publish nothing.

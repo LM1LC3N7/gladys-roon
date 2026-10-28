@@ -211,13 +211,14 @@ export class RoonApp {
     next.set(coreId, token);
     // At most 8 Cores remembered, the oldest forgotten.
     while (next.size > 8) next.delete(next.keys().next().value);
+    // In memory BEFORE the write (review r2, I2): a record() saved while this
+    // write is slow takes the token in its snapshot, never the old tokens.
+    this.tokens = next;
     try {
-      await this.store.save(this.snapshot(next));
-      this.tokens = next;
+      await this.store.save(this.snapshot());
       this.tokenUnsaved = false;
     } catch (err) {
       // Kept in memory for this run only.
-      this.tokens = next;
       this.tokenUnsaved = true;
       this.logger.warn(`roon: the authorization could not be saved (${err?.code ?? 'Error'})`);
     }
@@ -641,12 +642,15 @@ export class RoonApp {
   publishTransports(live) {
     const cur = this.current;
     const byKey = live && cur?.ready ? this.outputsByKey(cur.roon) : new Map();
+    // Local only for one live output of the name, not swapped (review r2:
+    // a swapped device publishes nothing, its badge says so).
+    const reachable = (key) => {
+      const outputs = byKey.get(key) ?? [];
+      return outputs.length === 1 && !this.identity(cur, key, outputs).swapped;
+    };
     const entries = [...this.createdByKey()].map(([key, device]) => ({
       external_id: device.external_id,
-      transport:
-        (byKey.get(key)?.length ?? 0) === 1
-          ? DEVICE_TRANSPORTS.LOCAL
-          : DEVICE_TRANSPORTS.UNREACHABLE,
+      transport: reachable(key) ? DEVICE_TRANSPORTS.LOCAL : DEVICE_TRANSPORTS.UNREACHABLE,
     }));
     const signature = JSON.stringify(entries);
     if (entries.length === 0 || signature === this.lastTransports) return;
@@ -685,6 +689,8 @@ export class RoonApp {
       for (const [key, outputs] of this.outputsByKey(cur.roon)) {
         if (outputs.length === 1) this.record(key, outputs[0].id);
       }
+      // States and badges of the names just taken.
+      this.scheduleFlush(0);
     }
     return this.publishDiscovered();
   }
@@ -765,6 +771,8 @@ export class RoonApp {
   /** Sends a transport request within the budget; the errors say whether it left. */
   async send(cur, name, body, started, { budget = TIMINGS.COMMAND_BUDGET, urgent = false } = {}) {
     const left = budget - (this.monotonic() - started) - 300;
+    // Never removed: with no time left the request would leave without a
+    // timer (timeout <= 0 waits as long as the session lives).
     if (left <= 0) throw fail(E.late);
     const most = budget === TIMINGS.COMMAND_BUDGET ? TIMINGS.COMMAND : budget - 1000;
     try {

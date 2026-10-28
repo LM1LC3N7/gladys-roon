@@ -99,7 +99,7 @@ sourdine cliquée après elle n'est jamais doublée).
   voient aux identifiants de sortie vus en dernier pour chaque nom (gardés
   dans `/data`) ; le volume ne part jamais dans l'autre pièce. Jusqu'à une
   nouvelle Découverte (qui prend les nouveaux noms), l'appareil ne publie
-  rien, la pause, l'arrêt, la sourdine et une baisse de volume vont à la pièce
+  rien (son badge indique « injoignable »), la pause, l'arrêt, la sourdine et une baisse de volume vont à la pièce
   pour laquelle il a été créé, et les autres commandes sont refusées. Deux sorties de
   même nom sont laissées hors de Découverte et ne publient rien.
 - **Réseau** : l'API des extensions Roon passe en `ws://` simple sur le réseau

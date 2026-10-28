@@ -16,6 +16,11 @@ to date at the end of every milestone.
       buttons find, show, forget. Tested against a fake Core over a real
       loopback WebSocket, the SDK fake Gladys, a virtual clock and the real
       clock x20. No real Core.
+- [x] Review r3 (2026-10-28): APPROUVÉ, no blocker.
+- [ ] Next patch — review r3 leftovers: `tokenUnsaved` stays true after a
+      failed write followed by a successful `record()`; `publishTransports`
+      may record an id (harmless); say in the docs that any Discovery accepts
+      a name swap; `E.*` messages are English only.
 - [ ] **Milestone 2 — a real Core**: a tester's Roon Core (see "To check on a
       real Core").
 - [ ] **Milestone 3 — more**:

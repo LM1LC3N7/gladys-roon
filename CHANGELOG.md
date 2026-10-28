@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-28
+
 ### Added
 
 - Roon outputs as Gladys music players through the official Roon extension
@@ -24,4 +26,5 @@ the notes of the version's GitHub Release.
 - Buttons "Find the Roon Core" (SOOD through Gladys), "Show the connection",
   "Forget the Roon authorization".
 
-[Unreleased]: https://github.com/LM1LC3N7/gladys-roon/commits/main
+[Unreleased]: https://github.com/LM1LC3N7/gladys-roon/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/LM1LC3N7/gladys-roon/releases/tag/v0.1.1

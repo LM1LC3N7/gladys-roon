@@ -1,6 +1,6 @@
 {
   "name": "gladys-roon",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Roon zones for Gladys Assistant: play, pause, volume, mute, now playing and grouping, through the official Roon extension API of the Roon Core on the local network. Unofficial, not affiliated with Roon Labs.",
   "type": "module",
